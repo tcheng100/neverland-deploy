@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+venv/
+.neverland_opensea_monitor_state.json

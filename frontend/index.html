@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Discount Threat Radar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <main class="layout">
+      <header class="hero">
+        <p class="eyebrow">Neverland Monitor</p>
+        <h1>Discount Threat Radar</h1>
+        <p class="subtitle">
+          Alerts fire when another wallet gets a better <strong>discount %</strong> rank than your NFT listing.
+        </p>
+      </header>
+
+      <section class="panel controls">
+        <label class="wallets-field">
+          Wallets (one per line, comma, or paste list)
+          <textarea id="walletsInput" placeholder="0xabc...&#10;0xdef..."></textarea>
+        </label>
+        <div class="controls-side">
+          <label>
+            Poll (sec)
+            <input id="pollInput" type="number" min="5" value="15" />
+          </label>
+          <div class="actions">
+            <button id="startBtn" class="btn primary">Start</button>
+            <button id="saveWalletsBtn" class="btn ghost">Save Wallets</button>
+            <button id="clearWalletsBtn" class="btn ghost">Clear Saved</button>
+            <button id="notifyBtn" class="btn ghost">Enable Notifications</button>
+          </div>
+          <div id="savedInfo" class="saved-info">Saved wallets: 0</div>
+        </div>
+      </section>
+
+      <section id="statusBar" class="status-bar idle">
+        <span id="statusText">Idle</span>
+        <span id="statusMeta"></span>
+      </section>
+
+      <section class="grid">
+        <article class="panel metric">
+          <h2>My Listings</h2>
+          <p id="myCount">-</p>
+        </article>
+        <article class="panel metric">
+          <h2>Tracked Wallets</h2>
+          <p id="walletCount">-</p>
+        </article>
+        <article class="panel metric">
+          <h2>Best Rank</h2>
+          <p id="bestRank">-</p>
+        </article>
+        <article class="panel metric">
+          <h2>Threats Now</h2>
+          <p id="threatCount">-</p>
+        </article>
+        <article class="panel metric">
+          <h2>Price Inputs</h2>
+          <p id="priceInputs">-</p>
+        </article>
+      </section>
+
+      <section class="panel calc-wrap">
+        <h2>Reprice Calculator (MON Terms)</h2>
+        <div class="calc-grid">
+          <label>
+            DUST Locked
+            <input id="calcDustLocked" type="number" min="0" step="0.01" placeholder="e.g. 350" />
+          </label>
+          <label>
+            Competitor Price (DUST/MON)
+            <input id="calcCompetitorDustPerMon" type="number" min="0" step="0.0000001" placeholder="e.g. 1.9774012" />
+          </label>
+          <label>
+            Undercut By (MON)
+            <input id="calcUndercutMon" type="number" min="0" step="0.001" value="0.001" />
+          </label>
+          <label>
+            Target Discount %
+            <input id="calcTargetDiscount" type="number" step="0.01" placeholder="e.g. 12.5" />
+          </label>
+        </div>
+        <div class="calc-output">
+          <div><strong>Suggested Reprice (MON):</strong> <span id="calcSuggestedMon">-</span></div>
+          <div><strong>DUST/MON at Suggested:</strong> <span id="calcDustPerMon">-</span></div>
+          <div><strong>Discount % at Suggested:</strong> <span id="calcDiscountAtSuggested">-</span></div>
+          <div><strong>MON from Target Discount:</strong> <span id="calcMonFromDiscount">-</span></div>
+        </div>
+      </section>
+
+      <section id="alertsPanel" class="panel alerts">
+        <div class="alerts-head">
+          <h2>Live Alerts</h2>
+          <span id="alertsCounter">0</span>
+        </div>
+        <div id="alertsList" class="alerts-list"></div>
+      </section>
+
+      <section class="panel table-wrap">
+        <h2>Discount Ranking</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Token</th>
+              <th>Seller</th>
+              <th>Discount %</th>
+              <th>Price (MON)</th>
+              <th>DUST/MON</th>
+              <th>DUST Locked</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
