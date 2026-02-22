@@ -17,7 +17,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import requests
 
 
-API_URL = "https://app.neverland.money/api/marketplace/opensea"
+# OpenSea API configuration
+API_URL = "https://api.opensea.io/api/v2/listings/collection/{slug}/all"
+OPENSEA_API_KEY = os.environ.get("OPENSEA_API_KEY", "67d1af4a056449dcb901be928d30144e")
 DEFAULT_SLUG = "voting-escrow-dust"
 MONITOR_TITLE = "Neverland OpenSea Monitor"
 
@@ -138,15 +140,18 @@ def save_state(path: Path, state: Dict[str, Any]) -> None:
 
 def request_json_with_retry(
     session: requests.Session,
+    url: str,
     params: Dict[str, Any],
     timeout_seconds: int,
     retries: int,
 ) -> Dict[str, Any]:
     delay = 1.0
     last_exc: Optional[Exception] = None
+    headers = {"X-API-KEY": OPENSEA_API_KEY}
+
     for attempt in range(1, retries + 1):
         try:
-            response = session.get(API_URL, params=params, timeout=timeout_seconds)
+            response = session.get(url, params=params, headers=headers, timeout=timeout_seconds)
             if response.status_code in {429, 500, 502, 503, 504}:
                 raise requests.HTTPError(
                     f"retryable status={response.status_code}: {response.text[:300]}",
@@ -176,11 +181,13 @@ def fetch_all_opensea_listings(
 ) -> List[Dict[str, Any]]:
     all_rows: List[Dict[str, Any]] = []
     next_cursor: Optional[str] = None
+    url = API_URL.format(slug=slug)
+
     for _ in range(max_pages):
-        params: Dict[str, Any] = {"slug": slug, "limit": str(limit)}
+        params: Dict[str, Any] = {"limit": str(limit)}
         if next_cursor:
             params["next"] = next_cursor
-        payload = request_json_with_retry(session, params, timeout_seconds, retries)
+        payload = request_json_with_retry(session, url, params, timeout_seconds, retries)
         rows = payload.get("listings") or []
         if not isinstance(rows, list):
             rows = []

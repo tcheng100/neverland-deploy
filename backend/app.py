@@ -19,7 +19,9 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 
-OPENSEA_PROXY_URL = "https://app.neverland.money/api/marketplace/opensea"
+# OpenSea API configuration
+OPENSEA_API_URL = "https://api.opensea.io/api/v2/listings/collection/{slug}/all"
+OPENSEA_API_KEY = os.environ.get("OPENSEA_API_KEY", "67d1af4a056449dcb901be928d30144e")
 VEDUST_URL_TEMPLATE = "https://app.neverland.money/api/vedust/{token_id}"
 DUST_TOKEN_URL = "https://app.neverland.money/api/neverland/dust/token"
 
@@ -41,8 +43,11 @@ class DiscountListing:
     dust_value_usd: float
     listing_value_usd: float
     discount_pct: float
+    discount_pct_after_fees: float  # Discount % after 11% fees
     dust_per_mon: float
     asset_url: str
+    discount_usd_per_dust: float  # Dollar discount per DUST token
+    usd_per_dust_after_fees: float  # USD value per DUST after 11% fees
 
 class NeverlandDataService:
     def __init__(self) -> None:
@@ -54,11 +59,11 @@ class NeverlandDataService:
     def _now(self) -> float:
         return time.time()
 
-    def _fetch_json(self, url: str, params: Optional[Dict[str, Any]] = None, timeout: int = 20) -> Dict[str, Any]:
+    def _fetch_json(self, url: str, params: Optional[Dict[str, Any]] = None, timeout: int = 20, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         last_exc: Optional[Exception] = None
         for attempt in range(3):
             try:
-                response = self.session.get(url, params=params, timeout=timeout)
+                response = self.session.get(url, params=params, headers=headers, timeout=timeout)
                 response.raise_for_status()
                 payload = response.json()
                 if not isinstance(payload, dict):
@@ -195,11 +200,14 @@ class NeverlandDataService:
     def fetch_opensea_listings(self, slug: str, limit: int, max_pages: int) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
         next_cursor: Optional[str] = None
+        headers = {"X-API-KEY": OPENSEA_API_KEY}
+        url = OPENSEA_API_URL.format(slug=slug)
+
         for _ in range(max_pages):
-            params = {"slug": slug, "limit": str(limit)}
+            params = {"limit": str(limit)}
             if next_cursor:
                 params["next"] = next_cursor
-            payload = self._fetch_json(OPENSEA_PROXY_URL, params=params)
+            payload = self._fetch_json(url, params=params, headers=headers)
             page = payload.get("listings") or []
             if isinstance(page, list):
                 rows.extend(r for r in page if isinstance(r, dict))
@@ -272,6 +280,21 @@ class NeverlandDataService:
                 continue
             discount_pct = (dust_value_usd - listing_value_usd) / dust_value_usd * 100.0
             dust_per_mon = (dust_locked / row["price_mon"]) if row["price_mon"] > 0 else 0.0
+
+            # Calculate discount in USD per DUST token
+            # This is the listing price per DUST (what you pay per DUST at the discounted sale price)
+            discount_usd_per_dust = listing_value_usd / dust_locked if dust_locked > 0 else 0.0
+
+            # Calculate USD per DUST after 11% fees
+            # After fees, you receive 89% of the listing value, so: (listing_value_usd * 0.89) / dust_locked
+            usd_per_dust_after_fees = (listing_value_usd * 0.89) / dust_locked if dust_locked > 0 else 0.0
+
+            # Calculate discount % after 11% fees
+            # After fees you get 89% of the listing value: listing_value_usd * 0.89
+            # Discount = (dust_value_usd - (listing_value_usd * 0.89)) / dust_value_usd * 100
+            listing_value_after_fees = listing_value_usd * 0.89
+            discount_pct_after_fees = (dust_value_usd - listing_value_after_fees) / dust_value_usd * 100.0 if dust_value_usd > 0 else 0.0
+
             ranked.append(
                 DiscountListing(
                     rank_discount=0,
@@ -284,8 +307,11 @@ class NeverlandDataService:
                     dust_value_usd=dust_value_usd,
                     listing_value_usd=listing_value_usd,
                     discount_pct=discount_pct,
+                    discount_pct_after_fees=discount_pct_after_fees,
                     dust_per_mon=dust_per_mon,
                     asset_url=row["asset_url"],
+                    discount_usd_per_dust=discount_usd_per_dust,
+                    usd_per_dust_after_fees=usd_per_dust_after_fees,
                 )
             )
 

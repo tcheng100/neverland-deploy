@@ -1,6 +1,14 @@
 const STORAGE_WALLETS_KEY = "neverland_dashboard_wallets_v1";
 const STORAGE_POLL_KEY = "neverland_dashboard_poll_v1";
 
+// Default wallets to monitor
+const DEFAULT_WALLETS = [
+  "0x5019651B7F680d5A8B03a4f0B7E7C35b07959966",
+  "0xBAcd289F6978E9A0523B8C03B2E006E4da20651C",
+  "0xace64DBF9B86975756A79a28A8614e9E97c707a6",
+  "0x10EBE178efD3f072b84d91f15FB4379BB72c3e3A",
+];
+
 const state = {
   wallets: [],
   intervalMs: 15000,
@@ -256,14 +264,23 @@ function renderTable(snapshot) {
     if (threatTokens.has(row.token_id)) tr.classList.add("threat");
 
     const discountClass = Number(row.discount_pct) >= 0 ? "discount-pos" : "discount-neg";
+    const discountPctAfterFees = Number(row.discount_pct_after_fees || 0);
+    const discountAfterFeesClass = discountPctAfterFees >= 0 ? "discount-pos" : "discount-neg";
+
     tr.innerHTML = `
       <td>${row.rank_discount}</td>
       <td><a href="${row.asset_url}" target="_blank" rel="noopener">#${row.token_id}</a></td>
       <td>${shortAddr(row.seller)}</td>
-      <td class="${discountClass}">${fmtPct(row.discount_pct)}</td>
+      <td>
+        <span class="${discountClass}">${fmtPct(row.discount_pct)}</span>
+        <span style="color: #999;"> / </span>
+        <span class="${discountAfterFeesClass}">${fmtPct(discountPctAfterFees)}</span>
+      </td>
       <td>${Number(row.price_mon).toFixed(3)}</td>
       <td>${Number(row.dust_per_mon || 0).toFixed(5)}</td>
       <td>${Number(row.dust_locked).toFixed(2)}</td>
+      <td>$${Number(row.discount_usd_per_dust || 0).toFixed(4)}</td>
+      <td>$${Number(row.usd_per_dust_after_fees || 0).toFixed(4)}</td>
     `;
     tableBody.appendChild(tr);
   }
@@ -319,7 +336,10 @@ async function fetchSnapshot() {
     limit: "200",
     max_pages: "20",
   });
-  const res = await fetch(`/api/snapshot?${params.toString()}`);
+  const apiUrl = window.location.hostname === 'localhost'
+    ? 'http://localhost:8787/api/snapshot'
+    : '/api/snapshot';
+  const res = await fetch(`${apiUrl}?${params.toString()}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Snapshot fetch failed");
   return data;
@@ -393,7 +413,9 @@ function clearWallets() {
 
 function bootstrapSavedState() {
   const savedWallets = loadWalletsFromStorage();
-  walletsInput.value = savedWallets.join("\n");
+  // If no saved wallets, use default wallets
+  const walletsToUse = savedWallets.length > 0 ? savedWallets : DEFAULT_WALLETS;
+  walletsInput.value = walletsToUse.join("\n");
   updateSavedInfo(savedWallets);
   loadPollValue();
   calculateReprice();
